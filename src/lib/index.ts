@@ -38,9 +38,17 @@ const htmlToElement = (html: string): HTMLElement => {
 };
 
 const DEFAULT_THROTTLE = 200;
-const DEFAULT_CLUSTER_HTML = (d: unknown[]) =>
-	d.length === 1 ? undefined : `<div class="cluster">${d.length}</div>`;
+const DEFAULT_CLUSTER_HTML = (d: Cluster<LatLng>) =>
+	d.points.length === 1 ? undefined : `<div class="cluster">${d.points.length}</div>`;
+
 const DEFAULT_OPTIONS = { throttle: DEFAULT_THROTTLE, clusterHTML: DEFAULT_CLUSTER_HTML };
+
+type LatLng = { lat: number; lng: number };
+type Cluster<T extends LatLng> = {
+	id: string;
+	center: LatLng;
+	points: T[];
+};
 
 export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 	map: mapboxgl.Map,
@@ -54,7 +62,12 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 		/**
 		 * The HTML to be rendered on each cluster.
 		 */
-		clusterHTML?: (leafs: T[]) => string | undefined;
+		clusterHTML?: (cluster: Cluster<T>) => string | undefined;
+		/**
+		 * It's called when the marker is clicked
+		 * @param cluster
+		 */
+		onClick?: (cluster: Cluster<T>) => void;
 	} = DEFAULT_OPTIONS
 ) => {
 	options = { ...DEFAULT_OPTIONS, ...options };
@@ -71,20 +84,23 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 			return [point.x, point.y];
 		};
 
-		const groups = grid(filtered, {
+		const clusters = grid(filtered, {
 			cellSize: 150,
 			vector: vectorFunc
 		});
 
-		for (const group of groups) {
-			const html = options.clusterHTML?.(group.points);
+		for (const cluster of clusters) {
+			const html = options.clusterHTML?.(cluster);
 
 			let element: HTMLElement | undefined = html ? htmlToElement(html) : undefined;
-
+			if (element) {
+				element.onclick = () => options.onClick?.(cluster);
+			}
 			const marker = new mapbox.Marker({
 				element
 			});
-			marker.setLngLat(group.center);
+
+			marker.setLngLat(cluster.center);
 			marker.addTo(map);
 			markers.push(marker);
 		}
