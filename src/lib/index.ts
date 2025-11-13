@@ -359,5 +359,8 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 	return () => {
 		map.off('zoom', handleZoom);
 		map.off('zoomend', handleZoomEnd);
+		for (const [_, marker] of markers) {
+			marker.remove();
+		}
 	};
 };
