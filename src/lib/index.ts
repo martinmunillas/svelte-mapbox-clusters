@@ -2,14 +2,9 @@ import mapbox from 'mapbox-gl';
 import * as h3 from 'h3-js';
 import { s2 } from 's2js';
 
-let markers: mapboxgl.Marker[] = [];
-
-const clearMarkers = () => {
-	for (const marker of markers) {
-		marker.remove();
-	}
-	markers = [];
-};
+function hashObject(obj: any) {
+	return JSON.stringify(obj, Object.keys(obj).sort());
+}
 
 type GridSystemId = 'h3' | 's2';
 
@@ -213,6 +208,8 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 	// options.gridSystem ||= DEFAULT_OPTIONS.gridSystem;
 	const _options = options;
 
+	let markers = new Map<string, mapboxgl.Marker>();
+
 	const compute = (e?: { type: 'zoom' | 'zoomend'; originalEvent?: MouseEvent }) => {
 		if (e && e.type === 'zoom' && !e.originalEvent) {
 			// if there is no original event, it was a programatic zoom thus we don't recompute on zoom, only on zoomend
@@ -284,7 +281,7 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 			};
 		});
 
-		const newMarkers: mapboxgl.Marker[] = [];
+		const newMarkers = new Map<string, mapboxgl.Marker>();
 		for (const cluster of clusters) {
 			const markerOptions = options.createMarker?.(cluster);
 
@@ -332,12 +329,21 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 			});
 
 			marker.setLngLat(cluster.center);
-			newMarkers.push(marker);
+			newMarkers.set(hashObject({ ...markerOptions, ...cluster.center }), marker);
 		}
-		clearMarkers();
-		for (const marker of newMarkers) {
-			marker.addTo(map);
+
+		for (const [key, oldMarker] of markers) {
+			if (!newMarkers.has(key)) {
+				oldMarker.remove();
+			}
 		}
+
+		for (const [key, nextMarker] of newMarkers) {
+			if (!markers.has(key)) {
+				nextMarker.addTo(map);
+			}
+		}
+
 		markers = newMarkers;
 	};
 
