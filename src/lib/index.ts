@@ -339,8 +339,11 @@ export const addClusteredLayer = <T extends { lat: number; lng: number }>(
 		}
 
 		for (const [key, nextMarker] of newMarkers) {
-			if (!markers.has(key)) {
+			const oldMarker = markers.get(key);
+			if (!oldMarker) {
 				nextMarker.addTo(map);
+			} else {
+				newMarkers.set(key, oldMarker);
 			}
 		}
 
